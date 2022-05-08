@@ -10,53 +10,37 @@ main <- function(filename) {
   processed_transaction = clean_transaction_export(filename)
   all_stocks <- levels(processed_transaction$symbol)
   all_accounts <- levels(processed_transaction$account_number)
-  
+
   # Store each day's tibble of data in a list, before combining.
   daily_list <- list()
-  
+
   start_date <-
     min(processed_transaction$trade_date)
   end_date <-
     max(processed_transaction$trade_date)
-  
+
   all_dates <-  seq(as.Date(start_date),
                     to = as.Date(end_date),
                     by = "day")
-  
-  if (!file.exists('data/balancehistoryold.csv')) {
-    for (i in 1:length(all_dates)) {
-      daily_list[[i]] <-
-        day_holdings(all_dates[i],
-                     processed_transaction,
-                     all_stocks,
-                     all_accounts)
-      
-    # Collapse daily_list into a tibble and save to a csv file
-    combined_holdings <- bind_rows(daily_list)
-    readr::write_csv(combined_holdings, 'data/balancehistoryold.csv')
-    }
 
-  }
-
-  test_combined_holdings <- processed_transaction %>% 
-    group_by(account_number) %>% 
-    complete(nesting(account_number, symbol), 
-             trade_date = seq(start_date, end_date, by = "day")) %>% 
-    ungroup() %>% 
-    group_by(account_number, symbol, trade_date) %>% 
-    slice(n()) %>% 
-    ungroup() %>% 
+  combined_holdings <- processed_transaction %>%
+    group_by(account_number) %>%
+    complete(nesting(account_number, symbol),
+             trade_date = seq(start_date, end_date, by = "day")) %>%
+    ungroup() %>%
+    group_by(account_number, symbol, trade_date) %>%
+    slice(n()) %>%
+    ungroup() %>%
     group_by(account_number, symbol) %>%
-    fill(share_sum, share_cumulative_cost_basis, .direction = "down") %>% 
-    ungroup() %>% 
+    fill(share_sum, share_cumulative_cost_basis, .direction = "down") %>%
+    ungroup() %>%
     replace_na(list(share_sum = 0, share_cumulative_cost_basis = 0)) %>%
-    ungroup() %>% 
-    select(symbol, trade_date, account_number, share_sum, share_cumulative_cost_basis) %>% 
+    ungroup() %>%
+    select(symbol, trade_date, account_number, share_sum, share_cumulative_cost_basis) %>%
     rename(stock = symbol, date = trade_date, account = account_number, count = share_sum,
            cost_basis = share_cumulative_cost_basis)
-  
-  readr::write_csv(test_combined_holdings, 'data/balancehistorynew.csv')
+
+  readr::write_csv(test_combined_holdings, 'data/balancehistory.csv')
 }
 main('data/ofxdownload.xlsx')
-# library(profvis)
-# profvis(main('data/ofxdownload.xlsx'))
+
